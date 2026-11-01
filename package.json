@@ -1,0 +1,83 @@
+{
+  "name": "yt-downloader",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Modern YouTube Video & Audio Downloader desktop app built with Electron, React, yt-dlp, and FFmpeg",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev:vite": "vite",
+    "build:vite": "vite build",
+    "build:electron": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --target node18 --external electron",
+    "build:launcher": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe /target:winexe /platform:anycpu /optimize+ /out:build\\launcher\\TubeFlow.exe build\\launcher\\Program.cs",
+    "build:uninstaller": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe /target:winexe /platform:anycpu /optimize+ /win32manifest:build\\uninstaller_gui\\app.manifest /out:\"build\\uninstaller_gui\\Uninstall TubeFlow.exe\" build\\uninstaller_gui\\Program.cs /reference:System.Windows.Forms.dll,System.Drawing.dll,System.dll",
+    "build": "npm run build:vite && npm run build:electron && npm run build:launcher && npm run build:uninstaller",
+    "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && npm run build:electron && electron . --dev\"",
+    "start": "npm run build && electron .",
+    "package": "npm run build && electron-builder --dir && node scripts/clean-unpacked.js",
+    "package:setup": "npm run build && electron-builder --win nsis && node scripts/clean-unpacked.js",
+    "package:exe": "npm run build && electron-builder --win portable",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.tubeflow.app",
+    "productName": "TubeFlow",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin"
+      },
+      {
+        "from": "build/launcher/TubeFlow.exe",
+        "to": "launcher/TubeFlow.exe"
+      },
+      {
+        "from": "build/uninstaller_gui/Uninstall TubeFlow.exe",
+        "to": "uninstaller/Uninstall TubeFlow.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "dir"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "^1.16.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "autoprefixer": "^10.6.2",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
+    "postcss": "^8.5.32",
+    "tailwindcss": "^3.4.19",
+    "tsup": "^9.0.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.5",
+    "wait-on": "^9.5.1"
+  }
+}
