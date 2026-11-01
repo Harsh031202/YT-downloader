@@ -5,66 +5,6 @@
 ; INSTALLER SECTION (Only included during installer build)
 ; =============================================================
 !ifndef BUILD_UNINSTALLER
-  Var Dialog_Permissions
-  Var Hwnd_PermTitle
-  Var Hwnd_PermDesc
-  Var Hwnd_CbApp
-  Var Hwnd_CbEngines
-  Var Hwnd_CbStorage
-  Var Hwnd_CbShortcuts
-
-  !macro customPageAfterChangeDir
-    Page custom PermissionsPage PermissionsPageLeave
-  !macroend
-
-  Function PermissionsPage
-    nsDialogs::Create 1018
-    Pop $Dialog_Permissions
-    ${If} $Dialog_Permissions == error
-      Abort
-    ${EndIf}
-
-    ${NSD_CreateLabel} 0 0 100% 12u "Permissions & Component Configuration"
-    Pop $Hwnd_PermTitle
-
-    ${NSD_CreateLabel} 0 14u 100% 18u "TubeFlow requires permissions to execute media engines and store downloaded videos:"
-    Pop $Hwnd_PermDesc
-
-    ; Checkbox 1: Core App
-    ${NSD_CreateCheckbox} 10u 36u 90% 12u "Permission to install TubeFlow Application (Core Desktop Client)"
-    Pop $Hwnd_CbApp
-    ${NSD_Check} $Hwnd_CbApp
-    EnableWindow $Hwnd_CbApp 0 ; Required
-
-    ; Checkbox 2: Engines (yt-dlp & ffmpeg)
-    ${NSD_CreateCheckbox} 10u 52u 90% 14u "Permission to install and run latest yt-dlp & FFmpeg engines (4K/Audio)"
-    Pop $Hwnd_CbEngines
-    ${NSD_Check} $Hwnd_CbEngines
-
-    ; Checkbox 3: Storage directory
-    ${NSD_CreateCheckbox} 10u 70u 90% 14u "Permission to create downloads directory (%USERPROFILE%\Downloads\TubeFlow)"
-    Pop $Hwnd_CbStorage
-    ${NSD_Check} $Hwnd_CbStorage
-
-    ; Checkbox 4: Desktop shortcuts
-    ${NSD_CreateCheckbox} 10u 88u 90% 14u "Create Desktop and Start Menu Shortcuts for 1-click launch"
-    Pop $Hwnd_CbShortcuts
-    ${NSD_Check} $Hwnd_CbShortcuts
-
-    ${NSD_CreateLabel} 10u 108u 90% 24u "Note: All downloads occur strictly on your local computer using the bundled yt-dlp and FFmpeg binaries. No credentials or telemetry are transmitted."
-    Pop $0
-
-    nsDialogs::Show
-  FunctionEnd
-
-  Function PermissionsPageLeave
-    ${NSD_GetState} $Hwnd_CbEngines $0
-    ${If} $0 != ${BST_CHECKED}
-      MessageBox MB_YESNO|MB_ICONEXCLAMATION "Without permission for yt-dlp and FFmpeg, TubeFlow will not be able to download videos or convert audio. Continue anyway?" IDYES +2
-      Abort
-    ${EndIf}
-  FunctionEnd
-
   !macro customInstall
     DetailPrint "Configuring clean application directory structure..."
 
@@ -110,6 +50,10 @@
     CreateShortCut "$DESKTOP\TubeFlow.lnk" "$INSTDIR\TubeFlow.exe" "" "$INSTDIR\TubeFlow.exe" 0
     CreateShortCut "$SMPROGRAMS\TubeFlow\TubeFlow.lnk" "$INSTDIR\TubeFlow.exe" "" "$INSTDIR\TubeFlow.exe" 0
     CreateShortCut "$SMPROGRAMS\TubeFlow\Uninstall TubeFlow.lnk" "$INSTDIR\Uninstall TubeFlow.exe" "" "$INSTDIR\Uninstall TubeFlow.exe" 0
+
+    ; 9. Run the engine installer script during installation
+    DetailPrint "Configuring and verifying yt-dlp and FFmpeg media engines..."
+    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\app\resources\scripts\install-engines.ps1" -InstallDir "$INSTDIR\app\resources\bin"'
   !macroend
 !endif
 

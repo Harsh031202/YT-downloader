@@ -13,6 +13,12 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   clearHistory: () => import_electron.ipcRenderer.invoke("clear-history"),
   // Engine updater & Uninstaller
   updateYtdlp: () => import_electron.ipcRenderer.invoke("update-ytdlp"),
+  installCoreEngines: () => import_electron.ipcRenderer.invoke("install-core-engines"),
+  onEngineInstallLog: (callback) => {
+    const handler = (_, log) => callback(log);
+    import_electron.ipcRenderer.on("engine-install-log", handler);
+    return () => import_electron.ipcRenderer.removeListener("engine-install-log", handler);
+  },
   performUninstall: (level) => import_electron.ipcRenderer.invoke("perform-uninstall", level),
   getAppPermissions: () => import_electron.ipcRenderer.invoke("get-permissions"),
   saveAppPermissions: (perms) => import_electron.ipcRenderer.invoke("save-permissions", perms),

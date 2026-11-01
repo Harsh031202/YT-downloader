@@ -9,7 +9,7 @@ interface SettingsModalProps {
   outputFolder: string;
   onSelectOutputFolder: () => void;
   onClearHistory: () => void;
-  onOpenPermissions?: () => void;
+  onOpenEngineSetup?: () => void;
   onOpenUninstaller?: () => void;
   onReplayIntro?: () => void;
 }
@@ -21,7 +21,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   outputFolder,
   onSelectOutputFolder,
   onClearHistory,
-  onOpenPermissions,
+  onOpenEngineSetup,
   onOpenUninstaller,
   onReplayIntro,
 }) => {
@@ -125,23 +125,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h4 className="text-xs font-bold text-[#1A1D1F] flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-[#12B76A]" />
-                  Engine Permissions & Update Manager
+                  Core Media Engines
                 </h4>
                 <p className="text-[11px] text-[#8C93A0] mt-0.5">
-                  Manage yt-dlp & FFmpeg execution rights, storage access, or fetch latest binary releases.
+                  yt-dlp: {systemInfo?.ytdlpVersion || 'Installed'} • FFmpeg: {systemInfo?.ffmpegVersion || 'Installed'}
                 </p>
               </div>
-              {onOpenPermissions && (
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenPermissions();
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#F0F2F5] text-[#1A1D1F] border border-[#ECEEF2] text-xs font-bold transition-all shadow-xs flex-shrink-0"
-                >
-                  Manage Setup
-                </button>
-              )}
+              <div>
+                {onOpenEngineSetup && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenEngineSetup();
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#fae261] hover:bg-[#f9e47d] text-[#2a0f14] text-xs font-bold transition-all shadow-xs flex-shrink-0"
+                  >
+                    Setup Engines
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

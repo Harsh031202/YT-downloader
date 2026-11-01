@@ -132,6 +132,8 @@ declare global {
       saveDownloadHistory: (items: DownloadItem[]) => Promise<boolean>;
       clearHistory: () => Promise<boolean>;
       updateYtdlp: () => Promise<{ success: boolean; message: string }>;
+      installCoreEngines: () => Promise<{ success: boolean; ytdlpOk: boolean; ffmpegOk: boolean; log: string }>;
+      onEngineInstallLog: (callback: (log: string) => void) => () => void;
       performUninstall: (level: UninstallLevel) => Promise<{ success: boolean; message: string }>;
       getAppPermissions: () => Promise<AppPermissions>;
       saveAppPermissions: (perms: AppPermissions) => Promise<boolean>;

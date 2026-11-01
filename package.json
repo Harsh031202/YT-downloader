@@ -35,6 +35,10 @@
         "to": "bin"
       },
       {
+        "from": "scripts/install-engines.ps1",
+        "to": "scripts/install-engines.ps1"
+      },
+      {
         "from": "build/launcher/TubeFlow.exe",
         "to": "launcher/TubeFlow.exe"
       },

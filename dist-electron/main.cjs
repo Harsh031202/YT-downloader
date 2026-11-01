@@ -31,40 +31,63 @@ var activeDownloads = /* @__PURE__ */ new Map();
 function getBinaryPaths() {
   let ytdlpPath = "yt-dlp";
   let ffmpegPath = "ffmpeg";
-  const localBinYt = path.join(import_electron.app.getAppPath(), "bin", "yt-dlp.exe");
-  if (fs.existsSync(localBinYt)) ytdlpPath = localBinYt;
-  const localBinFfmpeg = path.join(import_electron.app.getAppPath(), "bin", "ffmpeg.exe");
-  if (fs.existsSync(localBinFfmpeg)) ffmpegPath = localBinFfmpeg;
-  if (process.resourcesPath) {
-    const resBinYt = path.join(process.resourcesPath, "bin", "yt-dlp.exe");
-    if (fs.existsSync(resBinYt)) ytdlpPath = resBinYt;
-    const resBinFfmpeg = path.join(process.resourcesPath, "bin", "ffmpeg.exe");
-    if (fs.existsSync(resBinFfmpeg)) ffmpegPath = resBinFfmpeg;
+  const candidateDirs = [
+    // 1. UserData bin (%APPDATA%\TubeFlow\bin) - writable, where in-app updates go
+    path.join(import_electron.app.getPath("userData"), "bin"),
+    // 2. Packaged resources bin ($INSTDIR\app\resources\bin or resources\bin)
+    process.resourcesPath ? path.join(process.resourcesPath, "bin") : "",
+    // 3. Project / executable local bin
+    path.join(import_electron.app.getAppPath(), "bin"),
+    path.join(path.dirname(import_electron.app.getPath("exe")), "resources", "bin"),
+    path.join(path.dirname(import_electron.app.getPath("exe")), "bin")
+  ].filter(Boolean);
+  for (const dir of candidateDirs) {
+    if (ytdlpPath === "yt-dlp") {
+      const ytCandidate = path.join(dir, "yt-dlp.exe");
+      if (fs.existsSync(ytCandidate)) ytdlpPath = ytCandidate;
+    }
+    if (ffmpegPath === "ffmpeg") {
+      const ffCandidate = path.join(dir, "ffmpeg.exe");
+      if (fs.existsSync(ffCandidate)) ffmpegPath = ffCandidate;
+    }
   }
-  if (ytdlpPath === "yt-dlp") {
-    const pythonUserPath = path.join(
-      process.env.USERPROFILE || "C:\\Users\\DarK",
-      "AppData",
-      "Roaming",
-      "Python",
-      "Python314",
-      "Scripts",
-      "yt-dlp.exe"
-    );
-    if (fs.existsSync(pythonUserPath)) ytdlpPath = pythonUserPath;
+  if (ytdlpPath === "yt-dlp" && process.env.APPDATA) {
+    const pythonRoaming = path.join(process.env.APPDATA, "Python");
+    if (fs.existsSync(pythonRoaming)) {
+      try {
+        const pyDirs = fs.readdirSync(pythonRoaming);
+        for (const pyDir of pyDirs) {
+          const cand = path.join(pythonRoaming, pyDir, "Scripts", "yt-dlp.exe");
+          if (fs.existsSync(cand)) {
+            ytdlpPath = cand;
+            break;
+          }
+        }
+      } catch {
+      }
+    }
   }
-  if (ffmpegPath === "ffmpeg") {
-    const wingetFFmpeg = path.join(
-      process.env.LOCALAPPDATA || "C:\\Users\\DarK\\AppData\\Local",
-      "Microsoft",
-      "WinGet",
-      "Packages",
-      "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
-      "ffmpeg-9.0.2-full_build",
-      "bin",
-      "ffmpeg.exe"
-    );
-    if (fs.existsSync(wingetFFmpeg)) ffmpegPath = wingetFFmpeg;
+  if (ffmpegPath === "ffmpeg" && process.env.LOCALAPPDATA) {
+    const wingetBase = path.join(process.env.LOCALAPPDATA, "Microsoft", "WinGet", "Packages");
+    if (fs.existsSync(wingetBase)) {
+      try {
+        const pkgs = fs.readdirSync(wingetBase);
+        for (const pkg of pkgs) {
+          if (pkg.toLowerCase().includes("ffmpeg")) {
+            const fullPkg = path.join(wingetBase, pkg);
+            const subdirs = fs.readdirSync(fullPkg);
+            for (const sub of subdirs) {
+              const cand = path.join(fullPkg, sub, "bin", "ffmpeg.exe");
+              if (fs.existsSync(cand)) {
+                ffmpegPath = cand;
+                break;
+              }
+            }
+          }
+        }
+      } catch {
+      }
+    }
   }
   return { ytdlpPath, ffmpegPath };
 }
@@ -261,6 +284,55 @@ import_electron.ipcMain.handle("update-ytdlp", async () => {
           message: stdout.trim() || "yt-dlp updated successfully to the latest release."
         });
       }
+    });
+  });
+});
+import_electron.ipcMain.handle("install-core-engines", async () => {
+  const userDataBin = path.join(import_electron.app.getPath("userData"), "bin");
+  if (!fs.existsSync(userDataBin)) {
+    try {
+      fs.mkdirSync(userDataBin, { recursive: true });
+    } catch {
+    }
+  }
+  return new Promise((resolve) => {
+    let scriptPath = path.join(import_electron.app.getAppPath(), "scripts", "install-engines.ps1");
+    if (process.resourcesPath) {
+      const resScript = path.join(process.resourcesPath, "scripts", "install-engines.ps1");
+      if (fs.existsSync(resScript)) scriptPath = resScript;
+    }
+    const ps = (0, import_child_process.spawn)("powershell.exe", [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      scriptPath,
+      "-InstallDir",
+      userDataBin
+    ], {
+      windowsHide: true
+    });
+    let output = "";
+    let errOutput = "";
+    ps.stdout.on("data", (data) => {
+      const text = data.toString();
+      output += text;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("engine-install-log", text);
+      }
+    });
+    ps.stderr.on("data", (data) => {
+      errOutput += data.toString();
+    });
+    ps.on("close", (code) => {
+      const ytdlpOk = fs.existsSync(path.join(userDataBin, "yt-dlp.exe"));
+      const ffmpegOk = fs.existsSync(path.join(userDataBin, "ffmpeg.exe"));
+      resolve({
+        success: code === 0 || ytdlpOk && ffmpegOk,
+        ytdlpOk,
+        ffmpegOk,
+        log: output || errOutput
+      });
     });
   });
 });

@@ -15,6 +15,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Engine updater & Uninstaller
   updateYtdlp: () => ipcRenderer.invoke('update-ytdlp'),
+  installCoreEngines: () => ipcRenderer.invoke('install-core-engines'),
+  onEngineInstallLog: (callback: (log: string) => void) => {
+    const handler = (_: any, log: string) => callback(log);
+    ipcRenderer.on('engine-install-log', handler);
+    return () => ipcRenderer.removeListener('engine-install-log', handler);
+  },
   performUninstall: (level: UninstallLevel) => ipcRenderer.invoke('perform-uninstall', level),
   getAppPermissions: () => ipcRenderer.invoke('get-permissions'),
   saveAppPermissions: (perms: AppPermissions) => ipcRenderer.invoke('save-permissions', perms),

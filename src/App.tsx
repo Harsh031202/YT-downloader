@@ -5,7 +5,7 @@ import { HomeView } from './views/HomeView';
 import { DownloadsView } from './views/DownloadsView';
 import { MoreView } from './views/MoreView';
 import { SettingsModal } from './components/SettingsModal';
-import { PermissionsSetupModal } from './components/PermissionsSetupModal';
+import { EngineSetupModal } from './components/EngineSetupModal';
 import { UninstallerModal } from './components/UninstallerModal';
 import { AppIntro } from './components/AppIntro';
 import type { VideoInfo, DownloadOptions, DownloadItem, SystemInfo, AppPermissions, UninstallLevel } from './types';
@@ -21,7 +21,7 @@ export const App: React.FC = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [downloadsHistory, setDownloadsHistory] = useState<DownloadItem[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [isPermissionsOpen, setIsPermissionsOpen] = useState<boolean>(false);
+  const [isEngineSetupOpen, setIsEngineSetupOpen] = useState<boolean>(false);
   const [isUninstallerOpen, setIsUninstallerOpen] = useState<boolean>(false);
   const [permissions, setPermissions] = useState<AppPermissions>({
     allowNetwork: true,
@@ -41,6 +41,19 @@ export const App: React.FC = () => {
 
   // Check if running inside Electron
   const isElectron = typeof window !== 'undefined' && !!window.electronAPI;
+
+  const handleRefreshSystemInfo = async (): Promise<SystemInfo | null> => {
+    if (isElectron) {
+      try {
+        const info = await window.electronAPI.getSystemInfo();
+        setSystemInfo(info);
+        return info;
+      } catch (e) {
+        console.error('Failed to refresh system info:', e);
+      }
+    }
+    return null;
+  };
 
   // Initialize System Info & History
   useEffect(() => {
@@ -186,10 +199,20 @@ export const App: React.FC = () => {
           setCurrentTab('home');
           showToast(`Found "${result.data.title.substring(0, 35)}..."`);
         } else {
-          showToast(result.error || 'Failed to analyze video. Check URL and try again.', 'error');
+          if (result.error && (result.error.includes('ENOENT') || result.error.includes('spawn'))) {
+            setIsEngineSetupOpen(true);
+            showToast('Core engine missing. Launching automatic setup...', 'error');
+          } else {
+            showToast(result.error || 'Failed to analyze video. Check URL and try again.', 'error');
+          }
         }
       } catch (err: any) {
-        showToast(err.message || 'Error occurred while contacting engine.', 'error');
+        if (err.message && (err.message.includes('ENOENT') || err.message.includes('spawn'))) {
+          setIsEngineSetupOpen(true);
+          showToast('Core engine missing. Launching automatic setup...', 'error');
+        } else {
+          showToast(err.message || 'Error occurred while contacting engine.', 'error');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -485,19 +508,17 @@ export const App: React.FC = () => {
         outputFolder={outputFolder}
         onSelectOutputFolder={handleSelectOutputFolder}
         onClearHistory={handleClearAllHistory}
-        onOpenPermissions={() => setIsPermissionsOpen(true)}
+        onOpenEngineSetup={() => setIsEngineSetupOpen(true)}
         onOpenUninstaller={() => setIsUninstallerOpen(true)}
         onReplayIntro={() => setShowIntro(true)}
       />
 
-      {/* Permissions Setup & Component Manager Modal */}
-      <PermissionsSetupModal
-        isOpen={isPermissionsOpen}
-        onClose={() => setIsPermissionsOpen(false)}
-        permissions={permissions}
-        onSavePermissions={handleSavePermissions}
+      {/* Core Media Engines Setup & Auto-Downloader Modal (Only opens if user clicks 'Setup Engines' in Settings or engine error) */}
+      <EngineSetupModal
+        isOpen={isEngineSetupOpen}
+        onClose={() => setIsEngineSetupOpen(false)}
         systemInfo={systemInfo}
-        onUpdateYtdlp={handleUpdateYtdlp}
+        onRefreshSystemInfo={handleRefreshSystemInfo}
       />
 
       {/* 3-Tier Uninstaller Wizard Modal */}
